@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <?php include __DIR__ . '/partials/head.html'; ?>
+    <link rel="stylesheet" href="/public/styles/admin-users.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/public/scripts/admin-users.js" defer></script>
+</head>
+<body>
+    <?php include __DIR__ . '/partials/nav.html'; ?>
+
+    <main class="admin-container">
+        <div class="admin-header">
+            <h1>🛡️ Panel Administratora</h1>
+            <p>Zarządzanie kontami użytkowników zarejestrowanych w systemie MaturaMat.</p>
+            <div class="admin-tabs">
+                <a href="/admin/users" class="admin-tab active">Użytkownicy</a>
+                <a href="/admin/exercises" class="admin-tab">Zadania</a>
+            </div>
+        </div>
+
+        <section class="section-block">
+            <h2>Zarejestrowani użytkownicy</h2>
+            <input type="text" id="search-input" class="search-box" placeholder="Zacznij pisać, aby wyszukać po loginie lub e-mailu...">
+
+            <div class="table-wrap">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>Nazwa użytkownika</th>
+                            <th>Adres E-mail</th>
+                            <th style="width: 240px;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <?php foreach ($users as $user): ?>
+                            <tr>
+                                <td><?= $user->getId(); ?></td>
+                                <td><strong><?= htmlspecialchars($user->getUsername()); ?></strong></td>
+                                <td><?= htmlspecialchars($user->getEmail()); ?></td>
+                                <td>
+                                    <a href="/admin/users/progress/<?= $user->getId(); ?>" class="btn-progress">
+                                        <i class="fa-solid fa-eye"></i> Postępy
+                                    </a>
+                                    <?php if ($user->getId() === $_SESSION['user_id']): ?>
+                                        <span class="badge-self">To Ty</span>
+                                    <?php else: ?>
+                                        <a
+                                            href="/admin/users/delete/<?= $user->getId(); ?>"
+                                            class="btn-delete"
+                                            data-username="<?= htmlspecialchars($user->getUsername()); ?>"
+                                        >
+                                            <i class="fa-solid fa-trash"></i> Usuń konto
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div id="delete-user-modal" class="modal" hidden>
+            <div class="modal-content">
+                <button class="modal-close" id="delete-user-modal-close" type="button">&times;</button>
+                <div class="modal-header">
+                    <h2>Usuń konto użytkownika</h2>
+                    <p id="delete-user-modal-text">Czy na pewno chcesz usunąć tego użytkownika?</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="delete-user-modal-cancel">Anuluj</button>
+                    <a href="#" class="btn-delete-confirm" id="delete-user-modal-confirm">
+                        <i class="fa-solid fa-trash"></i> Usuń konto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script id="admin-config" type="application/json">
+        {"currentUserId": <?= json_encode($_SESSION['user_id']); ?>}
+    </script>
+</body>
+</html>
