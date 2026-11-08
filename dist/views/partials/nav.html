@@ -1,0 +1,32 @@
+<nav class="main-nav">
+  <div class="nav-container">
+    <span class="logo">
+        <i class="fa-solid fa-graduation-cap"></i> Zdasz.to
+    </span>
+
+    <ul class="nav-menu">
+      <li>
+        <a href="/index" class="nav-link"><i class="fa-solid fa-compass"></i> HOME</a>
+      </li>
+
+      <?php if (isset($_SESSION['user_id'])): ?>
+        <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true): ?>
+          <li>
+            <a href="/admin/users" class="nav-link nav-link-admin"><i class="fa-solid fa-user-gear"></i> PANEL ADMINA</a>
+          </li>
+        <?php endif; ?>
+
+        <li>
+          <a href="/dashboard" class="nav-link"><i class="fa-solid fa-chart-pie"></i> MOJE POSTĘPY</a>
+        </li>
+        <li>
+          <a href="/logout" class="nav-link nav-cta"><i class="fa-solid fa-power-off"></i> WYLOGUJ</a>
+        </li>
+      <?php else: ?>
+        <li>
+          <a href="/login" class="nav-link nav-cta"><i class="fa-solid fa-bolt"></i> LOGOWANIE</a>
+        </li>
+      <?php endif; ?>
+    </ul>
+  </div>
+</nav>

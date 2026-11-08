@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <?php include __DIR__ . '/partials/head.html'; ?>
+    <link rel="stylesheet" href="/public/styles/index.css">
+    <script src="/public/scripts/index.js" defer></script>
+</head>
+<body>
+    <?php include __DIR__ . '/partials/nav.html'; ?>
+    
+    <main class="index-container">
+        
+        <section class="hero-section">
+            <h1>Zdasz Maturę z Matematyki z nami!</h1>
+            <p>Przećwicz zadania ze wszystkich oficjalnych działów maturalnych. Monitoruj swoje postępy i ucz się efektywnie w nowoczesnym środowisku.</p>
+            
+            <?php if(!isset($isLoggedIn) || !$isLoggedIn): ?>
+                <div class="auth-box">
+                    <p>Nie masz jeszcze konta? Zapisuj swoje postępy!</p>
+                    <a href="/register" class="cta-button"><i class="fa-solid fa-rocket"></i> Dołącz do nas!</a>
+                </div>
+            <?php else: ?>
+                <p style="color: var(--primary-light); font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Witaj z powrotem! Gotowy na kolejną porcję zadań?</p>
+            <?php endif; ?>
+        </section>
+
+        <section class="random-section">
+            <h2>Masz mało czasu?</h2>
+            <p>Wylosuj zadania z różnych działów i sprawdź swoją ogólną wiedzę maturalną.</p>
+            <button type="button" id="random-btn" class="cta-button btn-random"><i class="fa-solid fa-shuffle"></i> Rozwiąż losowe zadania</button>
+        </section>
+
+        <section class="fields-section">
+            <h2>Wybierz dział matematyki</h2>
+            <p>Skup się na zadaniach z konkretnej dziedziny:</p>
+            
+            <div class="fields-grid">
+                <?php if(isset($fields) && !empty($fields)): ?>
+                    <?php foreach($fields as $field): ?>
+                        <?php $exerciseCount = (int)($field['exercises_count'] ?? 0); ?>
+                        <button
+                            type="button"
+                            class="field-card"
+                            data-field-id="<?= $field['id']; ?>"
+                            data-field-name="<?= htmlspecialchars($field['name']); ?>"
+                            data-max-count="<?= $exerciseCount; ?>"
+                            <?= $exerciseCount === 0 ? 'disabled' : ''; ?>
+                        >
+                            <span class="field-number">Dział <?= htmlspecialchars($field['number']); ?></span>
+                            <h3><?= htmlspecialchars($field['name']); ?></h3>
+                            <span class="field-count"><i class="fa-solid fa-layer-group"></i> Dostępne zadania: <?= $exerciseCount; ?></span>
+                        </button>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p style="color: #ea868f; font-weight: bold; background: rgba(220,53,69,0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #dc3545;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Brak dostępnych działów w bazie danych lub dane nie zostały poprawnie przekazane.
+                    </p>
+                <?php endif; ?>
+            </div>
+        </section>
+
+        <div id="field-modal" class="modal" hidden>
+            <div class="modal-content">
+                <button class="modal-close" id="field-modal-close">&times;</button>
+                <div class="modal-header">
+                    <h2 id="field-modal-title">Wybierz liczbę zadań</h2>
+                    <p id="field-modal-subtitle">Maksymalna liczba zadań: 0</p>
+                </div>
+
+                <form id="field-task-count-form">
+                    <input type="hidden" id="field-id-input">
+
+                    <label class="task-count-field" for="field-task-count-input">
+                        Liczba zadań
+                        <input type="number" id="field-task-count-input" min="1" value="5" required>
+                    </label>
+
+                    <div id="field-quick-counts" class="quick-counts" style="margin-top: 16px;"></div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="field-modal-cancel">Anuluj</button>
+                        <button type="submit" class="btn-submit">Rozpocznij</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="random-modal" class="modal" hidden>
+            <div class="modal-content">
+                <button class="modal-close" id="random-modal-close">&times;</button>
+                <div class="modal-header">
+                    <h2>Losowe zadania</h2>
+                    <p>Wybierz liczbę zadań do rozwiązania</p>
+                </div>
+
+                <form id="random-task-count-form">
+                    <label class="task-count-field" for="random-task-count-input" style="margin-bottom: 16px;">
+                        Liczba zadań (1-50)
+                        <input type="number" id="random-task-count-input" min="1" max="50" value="10" required>
+                    </label>
+
+                    <div id="random-quick-counts" class="quick-counts" style="margin-top: 16px;"></div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="random-modal-cancel">Anuluj</button>
+                        <button type="submit" class="btn-submit">Rozpocznij</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+</body>
+</html>
