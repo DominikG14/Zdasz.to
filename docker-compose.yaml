@@ -6,7 +6,7 @@ services:
     environment:
       PORT: 3000
       DATABASE_URL: postgres://${DB_USERNAME:-docker}:${DB_PASSWORD:-docker}@db:5432/${DB_NAME:-db}
-      SESSION_SECRET: ${SESSION_SECRET:-change-this-secret}
+      JWT_SECRET: ${JWT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

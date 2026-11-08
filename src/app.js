@@ -1,6 +1,4 @@
 import express from 'express';
-import session from 'express-session';
-import pgSession from 'connect-pg-simple';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import errorHandler from './middleware/errorHandler.js';
@@ -23,21 +21,13 @@ import { createAdminRouter } from './modules/admin/admin.routes.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export function createApp({ pool, repositories, upload }) {
+export function createApp({ repositories, upload }) {
   const app = express();
-  const sessionStore = new (pgSession(session))({ pool, tableName: 'user_sessions', createTableIfMissing: true });
 
   app.set('trust proxy', 1);
   app.use(requestContext);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.use(session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET || 'change-this-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: 'strict', secure: process.env.COOKIE_SECURE === 'true', maxAge: 7 * 864e5 },
-  }));
   app.use('/public', express.static(path.resolve(here, '../public')));
 
   const authController = createAuthController(createAuthService(repositories.auth));

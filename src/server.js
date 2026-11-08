@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import pg from 'pg';
 import knexFactory from 'knex';
 import multer from 'multer';
 import path from 'node:path';
@@ -7,6 +6,7 @@ import crypto from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
+import { assertJwtConfiguration } from './modules/auth/auth.jwt.js';
 import knexConfig from '../knexfile.js';
 import { createKnexQuery } from './db/knexQuery.js';
 import { createAuthRepository } from './modules/auth/auth.repository.knex.js';
@@ -14,9 +14,7 @@ import { createExercisesRepository } from './modules/exercises/exercises.reposit
 import { createProgressRepository } from './modules/progress/progress.repository.knex.js';
 import { createAdminRepository } from './modules/admin/admin.repository.knex.js';
 
-const { Pool } = pg;
-const databaseUrl = process.env.DATABASE_URL || 'postgres://docker:docker@127.0.0.1:5433/db';
-const pool = new Pool({ connectionString: databaseUrl });
+assertJwtConfiguration();
 const knex = knexFactory(knexConfig[process.env.NODE_ENV === 'production' ? 'production' : 'development']);
 const query = createKnexQuery(knex);
 const repositories = {
@@ -38,5 +36,5 @@ const upload = multer({
   fileFilter: (_req, file, callback) => callback(null, /^image\/(png|jpeg|gif)$/.test(file.mimetype)),
 });
 
-const app = createApp({ pool, repositories, upload });
+const app = createApp({ repositories, upload });
 app.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('Zdasz.to server listening'));
