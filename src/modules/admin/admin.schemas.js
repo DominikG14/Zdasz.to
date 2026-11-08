@@ -1,8 +1,7 @@
-import AppError from '../../errors/AppError.js';
+import { z } from 'zod';
 
-export function parseUserId(value) {
-  const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) throw new AppError('Niepoprawne ID użytkownika', 400);
-  return id;
-}
-export const parseSearch = value => String(value || '').trim().slice(0, 100);
+export const userIdParamsSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
+export const emptyParamsSchema = z.object({}).strict();
+export const usersQuerySchema = z.object({ search: z.string().max(100).optional() }).strict();
+export const emptyQuerySchema = z.object({}).strict();
+export const emptyBodySchema = z.object({}).strict();

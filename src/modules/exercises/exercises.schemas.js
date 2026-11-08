@@ -1,16 +1,23 @@
-import AppError from '../../errors/AppError.js';
+import { z } from 'zod';
 
-export const parseLimit = (value, fallback, max) => {
-  const n = Number(value);
-  return Math.max(1, Math.min(max, Number.isFinite(n) && n !== 0 ? n : fallback));
-};
-export function parseProgress(body = {}) {
-  const fieldId = Number(body.field_id), score = Number(body.score), total = Number(body.total);
-  if (!Number.isInteger(fieldId) || fieldId <= 0 || !Number.isInteger(score) || !Number.isInteger(total) || total < 1 || score < 0 || score > total) throw new AppError('Niepoprawne dane', 400);
-  return { fieldId, score, total };
-}
-export function parseNewExercise(body = {}, file) {
-  const fieldId = Number(body.field_id), type = body.type, answer = String(body.right_answer || '').toUpperCase();
-  if (!file || !Number.isInteger(fieldId) || fieldId <= 0 || !['ABCD', 'PF'].includes(type) || !(type === 'ABCD' ? /^[A-D]$/.test(answer) : /^(PP|PF|FP|FF)$/.test(answer))) throw new AppError('Sprawdź typ, odpowiedź i obraz PNG/JPG/GIF', 400);
-  return { fieldId, type, answer };
-}
+export const fieldParamsSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
+export const fieldQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }).strict();
+export const randomQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(50).optional() }).strict();
+export const emptyParamsSchema = z.object({}).strict();
+export const emptyQuerySchema = z.object({}).strict();
+
+export const progressBodySchema = z.object({
+  field_id: z.coerce.number().int().positive(),
+  score: z.coerce.number().int().nonnegative(),
+  total: z.coerce.number().int().positive(),
+}).strict().refine(value => value.score <= value.total, {
+  path: ['score'], message: 'Wynik nie może być większy niż liczba zadań',
+});
+
+export const newExerciseBodySchema = z.object({
+  field_id: z.coerce.number().int().positive(),
+  type: z.enum(['ABCD', 'PF']),
+  right_answer: z.string().trim().toUpperCase(),
+}).strict().refine(value => value.type === 'ABCD' ? /^[A-D]$/.test(value.right_answer) : /^(PP|PF|FP|FF)$/.test(value.right_answer), {
+  path: ['right_answer'], message: 'Niepoprawny format odpowiedzi dla wybranego typu',
+});

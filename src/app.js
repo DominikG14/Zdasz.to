@@ -4,6 +4,10 @@ import pgSession from 'connect-pg-simple';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import errorHandler from './middleware/errorHandler.js';
+import { notFoundHandler } from './middleware/errorHandler.js';
+import requestContext from './middleware/requestContext.js';
+import { validate } from './middleware/validate.js';
+import { emptySchema } from './schemas/common.schemas.js';
 import { createAuthService } from './modules/auth/auth.service.js';
 import { createAuthController } from './modules/auth/auth.controller.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
@@ -24,6 +28,7 @@ export function createApp({ pool, repositories, upload }) {
   const sessionStore = new (pgSession(session))({ pool, tableName: 'user_sessions', createTableIfMissing: true });
 
   app.set('trust proxy', 1);
+  app.use(requestContext);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(session({
@@ -46,6 +51,8 @@ export function createApp({ pool, repositories, upload }) {
   app.use('/', createExercisesRouter(exerciseController, upload));
   app.use('/', createProgressRouter(progressController));
   app.use('/admin', createAdminRouter(adminController));
+  app.get('/api/debug/crash', validate({ params: emptySchema, query: emptySchema, body: emptySchema }), (_req, _res, next) => next(new Error('boom')));
+  app.use('/api', notFoundHandler);
 
   const dist = path.resolve(here, '../dist');
   app.use(express.static(dist));

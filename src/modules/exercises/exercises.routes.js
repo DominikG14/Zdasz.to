@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { requireAdmin, requireUser } from '../../middleware/auth.js';
+import { validate } from '../../middleware/validate.js';
+import { emptyParamsSchema, emptyQuerySchema, fieldParamsSchema, fieldQuerySchema, newExerciseBodySchema, progressBodySchema, randomQuerySchema } from './exercises.schemas.js';
 
 export function createExercisesRouter(controller, upload) {
   const router = Router();
-  router.get('/fields', controller.fields);
-  router.get('/exercises/field/:id', controller.byField);
-  router.get('/exercises/random', controller.random);
-  router.post('/exercises/save', requireUser, controller.saveProgress);
-  router.post('/admin/exercises', requireAdmin, upload.single('image'), controller.create);
+  router.get('/fields', validate({ params: emptyParamsSchema, query: emptyQuerySchema, body: emptyQuerySchema }), controller.fields);
+  router.get('/exercises/field/:id', validate({ params: fieldParamsSchema, query: fieldQuerySchema, body: emptyQuerySchema }), controller.byField);
+  router.get('/exercises/random', validate({ params: emptyParamsSchema, query: randomQuerySchema, body: emptyQuerySchema }), controller.random);
+  router.post('/exercises/save', validate({ params: emptyParamsSchema, query: emptyQuerySchema, body: progressBodySchema }), requireUser, controller.saveProgress);
+  router.post('/admin/exercises', requireAdmin, upload.single('image'), validate({ params: emptyParamsSchema, query: emptyQuerySchema, body: newExerciseBodySchema }), controller.create);
   return router;
 }
