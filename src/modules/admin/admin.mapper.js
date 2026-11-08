@@ -1,0 +1,1 @@
+export const toAdminUserView = user => ({ id: user.id, username: user.username, email: user.email });
