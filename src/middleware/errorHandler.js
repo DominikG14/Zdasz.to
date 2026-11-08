@@ -13,6 +13,10 @@ export default function errorHandler(error, req, res, _next) {
     normalized = new AppError('Niepoprawny JSON w body', { statusCode: 400, code: 'INVALID_JSON' });
   } else if (error?.name === 'MulterError') {
     normalized = new AppError(error.code === 'LIMIT_FILE_SIZE' ? 'Plik przekracza maksymalny rozmiar 8 MB' : 'Niepoprawny upload pliku', { statusCode: 400, code: 'INVALID_UPLOAD' });
+  } else if (error?.code === '23505') {
+    normalized = new ConflictError('Rekord o podanych danych już istnieje');
+  } else if (error?.code === '23503') {
+    normalized = new NotFoundError('Powiązany zasób nie istnieje');
   } else if (!(error instanceof AppError)) {
     console.error(JSON.stringify({ requestId: req.requestId, message: error?.message, stack: error?.stack }));
     normalized = new AppError('Wewnętrzny błąd serwera');

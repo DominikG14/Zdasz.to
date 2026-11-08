@@ -1,24 +1,24 @@
+import 'dotenv/config';
 import pg from 'pg';
+import knexFactory from 'knex';
 import multer from 'multer';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
-import { createAuthRepository } from './modules/auth/auth.repository.js';
-import { createExercisesRepository } from './modules/exercises/exercises.repository.js';
-import { createProgressRepository } from './modules/progress/progress.repository.js';
-import { createAdminRepository } from './modules/admin/admin.repository.js';
+import knexConfig from '../knexfile.js';
+import { createKnexQuery } from './db/knexQuery.js';
+import { createAuthRepository } from './modules/auth/auth.repository.knex.js';
+import { createExercisesRepository } from './modules/exercises/exercises.repository.knex.js';
+import { createProgressRepository } from './modules/progress/progress.repository.knex.js';
+import { createAdminRepository } from './modules/admin/admin.repository.knex.js';
 
 const { Pool } = pg;
-const pool = new Pool({
-  host: process.env.DB_HOST || 'db',
-  port: Number(process.env.DB_PORT || 5432),
-  database: process.env.DB_NAME || 'db',
-  user: process.env.DB_USERNAME || 'docker',
-  password: process.env.DB_PASSWORD || 'docker',
-});
-const query = (sql, values = []) => pool.query(sql, values);
+const databaseUrl = process.env.DATABASE_URL || 'postgres://docker:docker@127.0.0.1:5433/db';
+const pool = new Pool({ connectionString: databaseUrl });
+const knex = knexFactory(knexConfig[process.env.NODE_ENV === 'production' ? 'production' : 'development']);
+const query = createKnexQuery(knex);
 const repositories = {
   auth: createAuthRepository(query),
   exercises: createExercisesRepository(query),
