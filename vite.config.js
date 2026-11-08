@@ -1,3 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-export default defineConfig({ plugins:[react()], server:{proxy:{'/api':'http://localhost:3000','/auth':'http://localhost:3000','/admin':'http://localhost:3000','/exercises':'http://localhost:3000','/dashboard':'http://localhost:3000'}}, build:{outDir:'dist'} });
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/auth': 'http://localhost:3000',
+      '/admin': 'http://localhost:3000',
+      '/exercises': 'http://localhost:3000',
+      '/dashboard': 'http://localhost:3000',
+      '/public': 'http://localhost:3000',
+    },
+  },
+  build: {
+    outDir: 'dist',
+    copyPublicDir: false,
+  },
+});
