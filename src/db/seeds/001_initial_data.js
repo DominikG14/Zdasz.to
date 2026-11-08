@@ -88,7 +88,7 @@ export async function seed(knex) {
     const fieldIds = new Map(fieldRows.map(field => [field.number, field.id]));
     await trx('exercises')
       .where('image_url', 'like', 'public/images/exercises/%')
-      .whereNotLike('image_url', 'public/images/exercises/uploads/%')
+      .whereNot('image_url', 'like', 'public/images/exercises/uploads/%')
       .whereNotIn('image_url', expectedImageUrls)
       .del();
     await trx('user_roles').insert({ user_id: userRows[0].id, role_id: roleRows[0].id }).onConflict(['user_id', 'role_id']).ignore();
@@ -107,5 +107,5 @@ export async function seed(knex) {
       await trx.raw("SELECT setval(pg_get_serial_sequence(?, 'id'), COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM ??", [table, table]);
     }
   });
-  console.info(`Seeded ${exercises.length} exercises from public/images/exercises.`);
+  console.info(`Seeded ${imagePaths.length} exercises from public/images/exercises.`);
 }
