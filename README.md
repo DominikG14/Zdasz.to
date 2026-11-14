@@ -21,7 +21,7 @@ Wymagany jest Docker z Docker Compose.
 
 Compose uruchomi PostgreSQL 16, wykona migracje i seed, a następnie uruchomi aplikację. Interfejs będzie dostępny pod adresem [http://localhost:8080](http://localhost:8080). PostgreSQL jest wystawiony na porcie `5433`, a pgAdmin na `5050`.
 
-Seed dodaje działy, konto administratora i zadania z obrazów znajdujących się w `public/images/exercises`. Przy ponownym uruchomieniu aktualizuje katalog zadań bez tworzenia duplikatów.
+Seed dodaje działy, konto administratora i zadania z obrazów znajdujących się w `public/images/exercises`. Domyślne dane logowania administratora to `admin@example.com` / `admin`; zmień hasło administratora przed wdrożeniem aplikacji. Przy ponownym uruchomieniu seed aktualizuje katalog zadań bez tworzenia duplikatów.
 
 ## Uruchomienie lokalne
 

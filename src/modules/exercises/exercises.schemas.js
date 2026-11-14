@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const fieldParamsSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
+export const exerciseIdParamsSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
 export const fieldQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }).strict();
 export const randomQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(50).optional() }).strict();
 export const emptyParamsSchema = z.object({}).strict();

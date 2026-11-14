@@ -249,6 +249,7 @@ function AdminExercises({ request }) {
   const [data, setData] = useState({ fields: [], exercises: [] });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
   const load = () => request('/admin/exercises').then(setData).catch(err => setError(err.message));
   useEffect(() => { load(); }, []);
   const submit = async event => {
@@ -259,6 +260,15 @@ function AdminExercises({ request }) {
       await request('/admin/exercises', { method: 'POST', body: new FormData(form) });
       setMessage('Zadanie dodane.');
       form.reset();
+      load();
+    } catch (err) { setError(err.message); }
+  };
+  const removeExercise = async exercise => {
+    setError(''); setMessage('');
+    try {
+      await request(`/admin/exercises/${exercise.id}`, { method: 'DELETE' });
+      setPendingDelete(null);
+      setMessage('Zadanie usunięte.');
       load();
     } catch (err) { setError(err.message); }
   };
@@ -274,7 +284,12 @@ function AdminExercises({ request }) {
       <button type="submit">Dodaj zadanie</button>
     </form>
     <h2>Lista zadań</h2>
-    {data.exercises.map(exercise => <p className="admin-exercise-row" key={exercise.id}>{exercise.field_name} · {exercise.type} · <img width="100" src={`/${exercise.image_url}`} alt="Podgląd zadania" /></p>)}
+    {data.exercises.map(exercise => <p className="admin-exercise-row" key={exercise.id}>
+      {exercise.field_name} · {exercise.type} · <img width="100" src={`/${exercise.image_url}`} alt="Podgląd zadania" />
+      {pendingDelete === exercise.id
+        ? <span className="confirm-actions"><span>Usunąć zadanie?</span><button type="button" onClick={() => removeExercise(exercise)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
+        : <button type="button" className="button-danger" onClick={() => setPendingDelete(exercise.id)}>Usuń</button>}
+    </p>)}
   </section>;
 }
 

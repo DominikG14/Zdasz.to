@@ -18,5 +18,9 @@ export function createExercisesRepository(query) {
     async create({ fieldId, imageUrl, type, answer }) {
       await query('INSERT INTO exercises(field_id, image_url, type, right_answer) VALUES($1, $2, $3, $4)', [fieldId, imageUrl, type, answer]);
     },
+    async remove(id) {
+      const { rows } = await query('DELETE FROM exercises WHERE id = $1 RETURNING image_url', [id]);
+      return rows[0] || null;
+    },
   };
 }

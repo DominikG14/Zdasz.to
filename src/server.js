@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { assertJwtConfiguration } from './modules/auth/auth.jwt.js';
@@ -27,6 +28,19 @@ const repositories = {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const uploadDirectory = path.resolve(here, '../public/images/exercises/uploads');
 mkdirSync(uploadDirectory, { recursive: true });
+async function removeExerciseImage(imageUrl) {
+  const prefix = 'public/images/exercises/uploads/';
+  if (!imageUrl.startsWith(prefix)) return;
+  const filename = imageUrl.slice(prefix.length);
+  if (!filename || path.basename(filename) !== filename || filename === '.' || filename === '..') {
+    throw new Error('Invalid uploaded exercise image path');
+  }
+  try {
+    await unlink(path.join(uploadDirectory, filename));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, callback) => callback(null, uploadDirectory),
@@ -36,5 +50,5 @@ const upload = multer({
   fileFilter: (_req, file, callback) => callback(null, /^image\/(png|jpeg|gif)$/.test(file.mimetype)),
 });
 
-const app = createApp({ repositories, upload });
+const app = createApp({ repositories, upload, removeExerciseImage });
 app.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('Zdasz.to server listening'));

@@ -21,7 +21,7 @@ import { createAdminRouter } from './modules/admin/admin.routes.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export function createApp({ repositories, upload }) {
+export function createApp({ repositories, upload, removeExerciseImage }) {
   const app = express();
 
   app.set('trust proxy', 1);
@@ -31,7 +31,7 @@ export function createApp({ repositories, upload }) {
   app.use('/public', express.static(path.resolve(here, '../public')));
 
   const authController = createAuthController(createAuthService(repositories.auth));
-  const exerciseController = createExercisesController(createExercisesService(repositories.exercises));
+  const exerciseController = createExercisesController(createExercisesService(repositories.exercises, removeExerciseImage));
   const progressController = createProgressController(createProgressService(repositories.progress));
   const adminController = createAdminController(createAdminService(repositories.admin));
 

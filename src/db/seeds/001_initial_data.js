@@ -41,6 +41,8 @@ const answers = {
 };
 
 const demoPassword = '$2y$10$AQorn7STxT67uCWbD55O7OQYPMcWPJt8CXOzhpXVYV7pZWJ0TgHXm';
+const adminPassword = '$2a$10$38ibSPQLISXJWxRv2S5oEu3QKajli6zFSM0vul16fph3Sabtvw/oK';
+const previousAdminPassword = '$2y$10$Iuzxt9Zlcj3.5oC9tGmpYO/tCh5Yv/Ykqnc6KIyKTD0YFM73jI8o.';
 const users = [
   ['MatmaMistrz', 'mistrz@example.com', demoPassword],
   ['AnkaSkakanka', 'anna.nowak@example.com', demoPassword],
@@ -54,7 +56,7 @@ const users = [
   ['PlanimetriaFan', 'trojkaty@example.com', demoPassword],
   ['AsKombinatoryki', 'prawdopodobienstwo@example.com', demoPassword],
   ['MaturzystaNaKrawedzi', 'ostatnia.szansa@example.com', demoPassword],
-  ['admin', 'admin@example.com', '$2y$10$Iuzxt9Zlcj3.5oC9tGmpYO/tCh5Yv/Ykqnc6KIyKTD0YFM73jI8o.'],
+  ['admin', 'admin@example.com', adminPassword],
 ];
 
 async function listImages(directory, relative = '') {
@@ -82,6 +84,7 @@ export async function seed(knex) {
     await trx('roles').insert({ name: 'ADMIN' }).onConflict('name').ignore();
     await trx('fields').insert(fields).onConflict('number').merge(['name']);
     await trx('users').insert(users.map(([username, email, password]) => ({ username, email, password }))).onConflict('username').ignore();
+    await trx('users').where({ username: 'admin', password: previousAdminPassword }).update({ password: adminPassword });
     const fieldRows = await trx('fields').select(['id', 'number']);
     const userRows = await trx('users').select(['id', 'username']).where({ username: 'admin' });
     const roleRows = await trx('roles').select(['id']).where({ name: 'ADMIN' });
