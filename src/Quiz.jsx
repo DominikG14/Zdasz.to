@@ -42,13 +42,20 @@ export default function Quiz({ page, user, go, setErr, request }) {
   const finish = finalAnswers => {
     const score = items.reduce((sum, item, index) => sum + (finalAnswers[index] === item.right_answer ? 1 : 0), 0);
     const finalResult = { score, total: items.length };
+    const payload = { field_id: field, ...finalResult };
     setResult(finalResult);
+
     if (user && field) {
       request('/exercises/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field_id: field, ...finalResult }),
+        body: JSON.stringify(payload),
       }).catch(error => setErr(error.message));
+      return;
+    }
+
+    if (!user) {
+      sessionStorage.setItem('pendingQuizResult', JSON.stringify(payload));
     }
   };
 
@@ -61,7 +68,25 @@ export default function Quiz({ page, user, go, setErr, request }) {
 
   if (loading) return <section><h1>Ładowanie zadań</h1><p>Trwa pobieranie zadań…</p></section>;
   if (!items.length) return <section><h1>Brak zadań</h1><p>Nie znaleziono zadań dla wybranego działu.</p><button onClick={() => go('/')}>Wróć do działów</button></section>;
-  if (result) return <section><h1>Podsumowanie</h1><h2>{result.score} / {result.total}</h2>{user ? <p>Wynik zapisany na Twoim koncie.</p> : <p>Zaloguj się lub zarejestruj, aby zapisać postęp.</p>}<button onClick={() => go('/')}>Wróć</button></section>;
+  if (result) {
+    const continueWithAuth = path => {
+      sessionStorage.setItem('pendingQuizResult', JSON.stringify({ field_id: field, score: result.score, total: result.total }));
+      go(path);
+    };
+
+    return <section>
+      <h1>Podsumowanie</h1>
+      <h2>{result.score} / {result.total}</h2>
+      {user ? <p>Wynik zapisany na Twoim koncie.</p> : <>
+        <p>Zaloguj się lub zarejestruj, aby zapisać postęp.</p>
+        <div className="auth-actions">
+          <button type="button" onClick={() => continueWithAuth('/login')}>Zaloguj się</button>
+          <button type="button" className="button-secondary" onClick={() => continueWithAuth('/register')}>Zarejestruj się</button>
+        </div>
+      </>}
+      <button type="button" onClick={() => go('/')}>Wróć</button>
+    </section>;
+  }
 
   const exercise = items[currentIndex];
   const options = exercise.type === 'ABCD' ? ['A', 'B', 'C', 'D'] : ['PP', 'PF', 'FP', 'FF'];

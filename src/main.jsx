@@ -11,6 +11,19 @@ for (const href of ['/public/styles/main.css', '/public/styles/react-app.css']) 
 
 const TOKEN_KEY = 'accessToken';
 
+function formatErrorMessage(errorBody) {
+  const details = Array.isArray(errorBody?.details) ? errorBody.details : [];
+  const detailText = details
+    .map(detail => {
+      const field = detail.field && detail.field !== '_root' ? `${detail.field}: ` : '';
+      return `${field}${detail.message}`;
+    })
+    .join('; ');
+
+  if (!detailText) return errorBody?.message || 'Wystąpił błąd';
+  return `${errorBody?.message || 'Dane wejściowe są niepoprawne.'} ${detailText}`;
+}
+
 async function request(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   const token = sessionStorage.getItem(TOKEN_KEY);
@@ -21,7 +34,7 @@ async function request(url, options = {}) {
   try { data = await response.json(); } catch { /* Empty response body. */ }
   if (!response.ok) {
     if (response.status === 401) sessionStorage.removeItem(TOKEN_KEY);
-    throw new Error(data.error?.message || data.error || 'Wystąpił błąd');
+    throw new Error(formatErrorMessage(data.error));
   }
   return data;
 }
@@ -152,11 +165,14 @@ function AuthPage({ register, request, onSuccess }) {
     event.preventDefault();
     setError('');
     const values = Object.fromEntries(new FormData(event.currentTarget));
+    const returnUrl = new URLSearchParams(location.search).get('returnUrl');
+    const body = { ...values };
+    if (returnUrl !== null) body.returnUrl = returnUrl;
     try {
       const result = await request(`/auth/${register ? 'register' : 'login'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, returnUrl: new URLSearchParams(location.search).get('returnUrl') }),
+        body: JSON.stringify(body),
       });
       onSuccess(result);
     } catch (err) { setError(err.message); }
