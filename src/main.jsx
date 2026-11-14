@@ -82,12 +82,14 @@ function App() {
     }} />;
   } else if (pathname === '/dashboard') {
     content = <Dashboard request={request} />;
+  } else if (pathname === '/admin') {
+    content = <AdminHome go={go} />;
   } else if (pathname.startsWith('/admin/users/progress/')) {
-    content = <AdminProgress id={pathname.split('/').at(-1)} request={request} />;
+    content = <AdminProgress id={pathname.split('/').at(-1)} go={go} request={request} />;
   } else if (pathname === '/admin/users') {
     content = <AdminUsers go={go} request={request} />;
   } else if (pathname === '/admin/exercises') {
-    content = <AdminExercises request={request} />;
+    content = <AdminExercises go={go} request={request} />;
   } else {
     content = <Home go={go} request={request} />;
   }
@@ -105,7 +107,7 @@ function App() {
       <nav>
         {link('/', 'Strona główna')}
         {user && link('/dashboard', 'Postępy')}
-        {user?.isAdmin && <>{link('/admin/users', 'Użytkownicy')}{link('/admin/exercises', 'Zadania')}</>}
+        {user?.isAdmin && link('/admin', 'Panel administratora')}
         {user ? <button type="button" onClick={logout}>Wyloguj</button> : <>{link('/login', 'Logowanie')}{link('/register', 'Rejestracja')}</>}
       </nav>
     </header>
@@ -193,17 +195,86 @@ function Dashboard({ request }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => { request('/dashboard').then(setData).catch(err => setError(err.message)); }, [request]);
-  return <section>
-    <h1>Twoje postępy</h1>
+  return <section className="progress-page">
+    <header className="section-heading">
+      <h1>Twoje postępy</h1>
+      <p>Podsumowanie wyników według działu oraz historia ostatnich podejść.</p>
+    </header>
     {error && <p role="alert">{error}</p>}
     {data && <>
-      <h2>Wyniki według działu</h2>
-      <table><thead><tr><th>Dział</th><th>Podejścia</th><th>Wynik</th></tr></thead>
-        <tbody>{data.byField.map((item, index) => <tr key={`${item.number}-${index}`}><td>{item.name}</td><td>{item.attempts_count}</td><td>{item.score_sum}/{item.total_sum}</td></tr>)}</tbody>
-      </table>
-      <h2>Historia</h2>
-      {data.progress.map((item, index) => <p key={`${item.solved_at}-${index}`}>{new Date(item.solved_at).toLocaleString('pl-PL')} · {item.name}: {item.score}/{item.total}</p>)}
+      <section className="table-section">
+        <h2>Wyniki według działu</h2>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead><tr><th>Dział</th><th>Liczba podejść</th><th>Łączny wynik</th><th>Skuteczność</th></tr></thead>
+            <tbody>{data.byField.length
+              ? data.byField.map((item, index) => <tr key={`${item.number}-${index}`}>
+                <td>{item.number}. {item.name}</td>
+                <td>{item.attempts_count}</td>
+                <td>{item.score_sum}/{item.total_sum}</td>
+                <td>{item.total_sum ? Math.round((item.score_sum / item.total_sum) * 100) : 0}%</td>
+              </tr>)
+              : <tr><td className="table-empty" colSpan="4">Brak zapisanych wyników.</td></tr>}</tbody>
+          </table>
+        </div>
+      </section>
+      <section className="table-section">
+        <h2>Historia podejść</h2>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead><tr><th>Data</th><th>Dział</th><th>Wynik</th><th>Skuteczność</th></tr></thead>
+            <tbody>{data.progress.length
+              ? data.progress.map((item, index) => <tr key={`${item.solved_at}-${index}`}>
+                <td>{new Date(item.solved_at).toLocaleString('pl-PL')}</td>
+                <td>{item.name}</td>
+                <td>{item.score}/{item.total}</td>
+                <td>{item.total ? Math.round((item.score / item.total) * 100) : 0}%</td>
+              </tr>)
+              : <tr><td className="table-empty" colSpan="4">Historia pojawi się po rozwiązaniu pierwszego zestawu.</td></tr>}</tbody>
+          </table>
+        </div>
+      </section>
     </>}
+  </section>;
+}
+
+function AdminPanelNav({ go, active }) {
+  const items = [
+    { path: '/admin', label: 'Przegląd', id: 'overview' },
+    { path: '/admin/users', label: 'Użytkownicy', id: 'users' },
+    { path: '/admin/exercises', label: 'Zadania', id: 'exercises' },
+  ];
+
+  return <nav className="admin-panel-nav" aria-label="Nawigacja panelu administratora">
+    {items.map(item => <a
+      href={item.path}
+      key={item.id}
+      className={active === item.id ? 'active' : ''}
+      aria-current={active === item.id ? 'page' : undefined}
+      onClick={event => { event.preventDefault(); go(item.path); }}
+    >{item.label}</a>)}
+  </nav>;
+}
+
+function AdminHome({ go }) {
+  return <section className="admin-home">
+    <AdminPanelNav go={go} active="overview" />
+    <header className="section-heading">
+      <h1>Panel administratora</h1>
+      <p>Wybierz obszar, którym chcesz zarządzać.</p>
+    </header>
+    <div className="admin-home-grid">
+      <a className="admin-home-card" href="/admin/users" onClick={event => { event.preventDefault(); go('/admin/users'); }}>
+        <span className="admin-home-card-icon" aria-hidden="true">01</span>
+        <span><strong>Użytkownicy</strong><small>Przeglądaj konta, postępy i zarządzaj użytkownikami.</small></span>
+        <span className="admin-home-card-arrow" aria-hidden="true">→</span>
+      </a>
+      <a className="admin-home-card" href="/admin/exercises" onClick={event => { event.preventDefault(); go('/admin/exercises'); }}>
+        <span className="admin-home-card-icon" aria-hidden="true">02</span>
+        <span><strong>Zadania</strong><small>Dodawaj zadania do działów i zarządzaj katalogiem.</small></span>
+        <span className="admin-home-card-arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
   </section>;
 }
 
@@ -222,30 +293,86 @@ function AdminUsers({ go, request }) {
     } catch (err) { setError(err.message); }
   };
 
-  return <section>
-    <h1>Panel administratora — użytkownicy</h1>
+  return <section className="admin-page">
+    <AdminPanelNav go={go} active="users" />
+    <header className="section-heading">
+      <h1>Użytkownicy</h1>
+      <p>Przeglądaj konta, sprawdzaj postępy i zarządzaj dostępem.</p>
+    </header>
     {error && <p role="alert">{error}</p>}
-    <input aria-label="Szukaj użytkowników" placeholder="Szukaj po nazwie lub emailu" value={search} onChange={event => setSearch(event.target.value)} />
-    <table><thead><tr><th>ID</th><th>Użytkownik</th><th>Email</th><th>Akcje</th></tr></thead>
-      <tbody>{users.map(user => <tr key={user.id}>
-        <td>{user.id}</td><td>{user.username}</td><td>{user.email}</td>
-        <td>
-          <button type="button" onClick={() => go(`/admin/users/progress/${user.id}`)}>Postępy</button>
-          {pendingDelete === user.id ? <span className="confirm-actions"><span>Usunąć konto?</span><button type="button" onClick={() => removeUser(user)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span> : <button type="button" className="button-danger" onClick={() => setPendingDelete(user.id)}>Usuń</button>}
-        </td>
-      </tr>)}</tbody>
-    </table>
+    <label className="table-filter">
+      <span>Filtruj użytkowników</span>
+      <input aria-label="Szukaj użytkowników" placeholder="Nazwa użytkownika lub email" value={search} onChange={event => setSearch(event.target.value)} />
+    </label>
+    <div className="table-scroll table-scroll-wide">
+      <table className="data-table">
+        <thead><tr><th>ID</th><th>Użytkownik</th><th>Email</th><th>Akcje</th></tr></thead>
+        <tbody>{users.length
+          ? users.map(user => <tr key={user.id}>
+            <td>{user.id}</td><td className="table-primary-cell">{user.username}</td><td>{user.email}</td>
+            <td className="table-actions">
+              <button type="button" onClick={() => go(`/admin/users/progress/${user.id}`)}>Postępy</button>
+              {pendingDelete === user.id
+                ? <span className="confirm-actions"><span>Usunąć konto?</span><button type="button" onClick={() => removeUser(user)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
+                : <button type="button" className="button-danger" onClick={() => setPendingDelete(user.id)}>Usuń</button>}
+            </td>
+          </tr>)
+          : <tr><td className="table-empty" colSpan="4">Nie znaleziono użytkowników.</td></tr>}</tbody>
+      </table>
+    </div>
   </section>;
 }
 
-function AdminProgress({ id, request }) {
+function AdminProgress({ id, go, request }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => { request(`/admin/users/${id}/progress`).then(setData).catch(err => setError(err.message)); }, [id, request]);
-  return <section><h1>Postępy {data?.username}</h1>{error && <p role="alert">{error}</p>}{data?.progress.map((item, index) => <p key={`${item.solved_at}-${index}`}>{item.name}: {item.score}/{item.total} · {new Date(item.solved_at).toLocaleString('pl-PL')}</p>)}</section>;
+  return <section className="admin-page">
+    <AdminPanelNav go={go} active="users" />
+    <header className="section-heading">
+      <h1>Postępy użytkownika</h1>
+      {data && <p>Konto: <strong>{data.username}</strong></p>}
+    </header>
+    {error && <p role="alert">{error}</p>}
+    {data && <>
+      <section className="table-section">
+        <h2>Postępy według działu</h2>
+        <div className="table-scroll table-scroll-wide">
+          <table className="data-table">
+            <thead><tr><th>Dział</th><th>Liczba podejść</th><th>Łączny wynik</th><th>Skuteczność</th><th>Ostatnie podejście</th></tr></thead>
+            <tbody>{data.byField.length
+              ? data.byField.map(item => <tr key={item.number}>
+                <td className="table-primary-cell">{item.number}. {item.name}</td>
+                <td>{item.attempts_count}</td>
+                <td>{item.score_sum}/{item.total_sum}</td>
+                <td>{item.effectiveness_percent}%</td>
+                <td>{new Date(item.last_solved_at).toLocaleString('pl-PL')}</td>
+              </tr>)
+              : <tr><td className="table-empty" colSpan="5">Użytkownik nie ma jeszcze zapisanych wyników.</td></tr>}</tbody>
+          </table>
+        </div>
+      </section>
+      <section className="table-section">
+        <h2>Ostatnie podejścia <span className="section-caption">(maksymalnie 10)</span></h2>
+        <div className="table-scroll table-scroll-wide">
+          <table className="data-table">
+            <thead><tr><th>Data</th><th>Dział</th><th>Wynik</th><th>Skuteczność</th></tr></thead>
+            <tbody>{data.progress.length
+              ? data.progress.map((item, index) => <tr key={`${item.solved_at}-${index}`}>
+                <td>{new Date(item.solved_at).toLocaleString('pl-PL')}</td>
+                <td>{item.number}. {item.name}</td>
+                <td>{item.score}/{item.total}</td>
+                <td>{item.total ? Math.round((item.score / item.total) * 100) : 0}%</td>
+              </tr>)
+              : <tr><td className="table-empty" colSpan="4">Brak historii podejść.</td></tr>}</tbody>
+          </table>
+        </div>
+      </section>
+    </>}
+  </section>;
 }
 
-function AdminExercises({ request }) {
+function AdminExercises({ go, request }) {
   const [data, setData] = useState({ fields: [], exercises: [] });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -273,23 +400,42 @@ function AdminExercises({ request }) {
     } catch (err) { setError(err.message); }
   };
 
-  return <section>
-    <h1>Panel administratora — zadania</h1>
+  return <section className="admin-page">
+    <AdminPanelNav go={go} active="exercises" />
+    <header className="section-heading">
+      <h1>Zadania</h1>
+      <p>Dodawaj zadania do konkretnych działów i zarządzaj katalogiem.</p>
+    </header>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <form className="admin-exercise-form" onSubmit={submit}>
+    <form className="admin-exercise-form admin-exercise-form-grid" onSubmit={submit}>
       <label>Dział<select name="field_id" required>{data.fields.map(field => <option value={field.id} key={field.id}>{field.number} — {field.name}</option>)}</select></label>
       <label>Typ<select name="type"><option>ABCD</option><option>PF</option></select></label>
       <label>Poprawna odpowiedź<input name="right_answer" required /></label>
       <label>Obraz zadania<input type="file" name="image" accept="image/png,image/jpeg,image/gif" required /></label>
-      <button type="submit">Dodaj zadanie</button>
+      <div className="admin-form-actions"><button type="submit">Dodaj zadanie</button></div>
     </form>
-    <h2>Lista zadań</h2>
-    {data.exercises.map(exercise => <p className="admin-exercise-row" key={exercise.id}>
-      {exercise.field_name} · {exercise.type} · <img width="100" src={`/${exercise.image_url}`} alt="Podgląd zadania" />
-      {pendingDelete === exercise.id
-        ? <span className="confirm-actions"><span>Usunąć zadanie?</span><button type="button" onClick={() => removeExercise(exercise)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
-        : <button type="button" className="button-danger" onClick={() => setPendingDelete(exercise.id)}>Usuń</button>}
-    </p>)}
+    <section className="table-section">
+      <h2>Lista zadań <span className="section-caption">({data.exercises.length})</span></h2>
+      <div className="table-scroll table-scroll-wide">
+        <table className="data-table exercise-table">
+          <thead><tr><th>ID</th><th>Dział</th><th>Typ</th><th>Podgląd</th><th>Poprawna odpowiedź</th><th>Akcje</th></tr></thead>
+          <tbody>{data.exercises.length
+            ? data.exercises.map(exercise => <tr key={exercise.id}>
+              <td>{exercise.id}</td>
+              <td className="table-primary-cell">{exercise.field_number}. {exercise.field_name}</td>
+              <td><span className="table-tag">{exercise.type}</span></td>
+              <td><img className="exercise-preview" src={`/${exercise.image_url}`} alt={`Podgląd zadania ${exercise.id}`} /></td>
+              <td>{exercise.right_answer}</td>
+              <td className="table-actions">
+                {pendingDelete === exercise.id
+                  ? <span className="confirm-actions"><span>Usunąć?</span><button type="button" onClick={() => removeExercise(exercise)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
+                  : <button type="button" className="button-danger" onClick={() => setPendingDelete(exercise.id)}>Usuń</button>}
+              </td>
+            </tr>)
+            : <tr><td className="table-empty" colSpan="6">Brak zadań w katalogu.</td></tr>}</tbody>
+        </table>
+      </div>
+    </section>
   </section>;
 }
 
