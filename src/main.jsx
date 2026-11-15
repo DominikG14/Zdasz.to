@@ -1,442 +1,96 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import Quiz from './Quiz.jsx';
+import './styles/modern-app.css';
 
-for (const href of ['/public/styles/main.css', '/public/styles/react-app.css']) {
-  const stylesheet = document.createElement('link');
-  stylesheet.rel = 'stylesheet';
-  stylesheet.href = href;
-  document.head.append(stylesheet);
-}
+import { AuthProvider } from './context/AuthContext.jsx';
+import Navbar from './components/Navbar.jsx';
+import Toast from './components/Toast.jsx';
 
-const TOKEN_KEY = 'accessToken';
-
-function formatErrorMessage(errorBody) {
-  const details = Array.isArray(errorBody?.details) ? errorBody.details : [];
-  const detailText = details
-    .map(detail => {
-      const field = detail.field && detail.field !== '_root' ? `${detail.field}: ` : '';
-      return `${field}${detail.message}`;
-    })
-    .join('; ');
-
-  if (!detailText) return errorBody?.message || 'Wystąpił błąd';
-  return `${errorBody?.message || 'Dane wejściowe są niepoprawne.'} ${detailText}`;
-}
-
-async function request(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  const token = sessionStorage.getItem(TOKEN_KEY);
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(url, { ...options, headers });
-  let data = {};
-  try { data = await response.json(); } catch { /* Empty response body. */ }
-  if (!response.ok) {
-    if (response.status === 401) sessionStorage.removeItem(TOKEN_KEY);
-    throw new Error(formatErrorMessage(data.error));
-  }
-  return data;
-}
+import HomePage from './pages/HomePage.jsx';
+import QuizPage from './pages/QuizPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import AuthPage from './pages/AuthPage.jsx';
+import AdminHomePage from './pages/AdminHomePage.jsx';
+import AdminUsersPage from './pages/AdminUsersPage.jsx';
+import AdminProgressPage from './pages/AdminProgressPage.jsx';
+import AdminExercisesPage from './pages/AdminExercisesPage.jsx';
 
 function App() {
-  const [user, setUser] = useState(null);
   const [page, setPage] = useState(location.pathname + location.search);
-  const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
+
   const pathname = new URL(page, location.origin).pathname;
 
-  const go = path => {
+  // Set dark theme as the default primary theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }, []);
+
+  // Navigation handler
+  const go = useCallback((path) => {
     history.pushState({}, '', path);
     setPage(path);
-    setError('');
-    window.scrollTo(0, 0);
-  };
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
+  // Listen to browser back/forward buttons
   useEffect(() => {
-    request('/api/me').then(result => setUser(result.user)).catch(() => setUser(null));
     const onPopState = () => setPage(location.pathname + location.search);
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const link = (path, label) => <a href={path} onClick={event => { event.preventDefault(); go(path); }}>{label}</a>;
-  const act = async action => {
-    setError('');
-    try { await action(); } catch (err) { setError(err.message); }
+  const triggerError = (msg) => {
+    if (msg) setToast({ message: msg, type: 'error' });
   };
 
+  const triggerSuccess = (msg) => {
+    if (msg) setToast({ message: msg, type: 'success' });
+  };
+
+  // Route routing logic
   let content;
   if (pathname.startsWith('/exercises/')) {
-    content = <Quiz page={page} user={user} go={go} setErr={setError} request={request} />;
+    content = <QuizPage page={page} go={go} onError={triggerError} />;
   } else if (pathname === '/login' || pathname === '/register') {
-    content = <AuthPage register={pathname === '/register'} request={request} onSuccess={result => {
-      sessionStorage.setItem(TOKEN_KEY, result.token);
-      setUser(result.user);
-      const pending = sessionStorage.getItem('pendingQuizResult');
-      if (pending) {
-        request('/exercises/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: pending })
-          .then(() => sessionStorage.removeItem('pendingQuizResult'))
-          .catch(err => setError(err.message));
-      }
-      go(result.returnUrl || '/');
-    }} />;
+    content = <AuthPage register={pathname === '/register'} go={go} onError={triggerError} />;
   } else if (pathname === '/dashboard') {
-    content = <Dashboard request={request} />;
+    content = <DashboardPage go={go} onError={triggerError} />;
   } else if (pathname === '/admin') {
-    content = <AdminHome go={go} />;
+    content = <AdminHomePage go={go} />;
   } else if (pathname.startsWith('/admin/users/progress/')) {
-    content = <AdminProgress id={pathname.split('/').at(-1)} go={go} request={request} />;
+    const id = pathname.split('/').at(-1);
+    content = <AdminProgressPage id={id} go={go} onError={triggerError} />;
   } else if (pathname === '/admin/users') {
-    content = <AdminUsers go={go} request={request} />;
+    content = <AdminUsersPage go={go} onError={triggerError} onSuccess={triggerSuccess} />;
   } else if (pathname === '/admin/exercises') {
-    content = <AdminExercises go={go} request={request} />;
+    content = <AdminExercisesPage go={go} onError={triggerError} onSuccess={triggerSuccess} />;
   } else {
-    content = <Home go={go} request={request} />;
+    content = <HomePage go={go} onError={triggerError} />;
   }
 
-  const logout = () => act(async () => {
-    await request('/auth/logout', { method: 'POST' });
-    sessionStorage.removeItem(TOKEN_KEY);
-    setUser(null);
-    go('/');
-  });
+  return (
+    <AuthProvider onNavigate={go}>
+      <div className="app-container">
+        <Navbar
+          currentPath={pathname}
+          go={go}
+        />
 
-  return <>
-    <header className="nav">
-      <a href="/" className="logo" onClick={event => { event.preventDefault(); go('/'); }}>Zdasz.to</a>
-      <nav>
-        {link('/', 'Strona główna')}
-        {user && link('/dashboard', 'Postępy')}
-        {user?.isAdmin && link('/admin', 'Panel administratora')}
-        {user ? <button type="button" onClick={logout}>Wyloguj</button> : <>{link('/login', 'Logowanie')}{link('/register', 'Rejestracja')}</>}
-      </nav>
-    </header>
-    <main className="page">
-      {error && <div className="error-message" role="alert">{error}</div>}
-      {content}
-    </main>
-  </>;
-}
+        <main className="main-content">
+          {content}
+        </main>
 
-function Home({ go, request }) {
-  const [fields, setFields] = useState([]);
-  const [selection, setSelection] = useState(null);
-  const [limit, setLimit] = useState(10);
-  const [error, setError] = useState('');
-
-  useEffect(() => { request('/api/fields').then(setFields).catch(err => setError(err.message)); }, [request]);
-
-  const chooseRandom = () => { setSelection({ random: true }); setLimit(10); };
-  const chooseField = field => { setSelection({ field }); setLimit(Math.min(5, field.exercises_count)); };
-  const start = event => {
-    event.preventDefault();
-    if (!selection) return;
-    const maximum = selection.random ? 50 : selection.field.exercises_count;
-    const count = Math.max(1, Math.min(maximum, Number(limit) || 1));
-    go(selection.random ? `/exercises/random?limit=${count}` : `/exercises/field/${selection.field.id}?limit=${count}`);
-  };
-
-  return <section>
-    <h1>Przygotuj się do matury z matematyki</h1>
-    <p>Wybierz dział i rozwiąż zestaw zadań.</p>
-    <button type="button" onClick={chooseRandom}>Losuj zadania</button>
-    {error && <p role="alert">{error}</p>}
-    <div className="fields-grid">
-      {fields.map(field => <button className="field-card" key={field.id} disabled={!field.exercises_count} onClick={() => chooseField(field)}>
-        <strong>{field.number}. {field.name}</strong>
-        <span>Dostępne zadania: {field.exercises_count}</span>
-      </button>)}
-    </div>
-    {selection && <div className="dialog-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelection(null); }}>
-      <form className="quiz-options" role="dialog" aria-modal="true" aria-labelledby="quiz-options-title" onSubmit={start}>
-        <h2 id="quiz-options-title">{selection.random ? 'Losowy zestaw' : `${selection.field.number}. ${selection.field.name}`}</h2>
-        <label htmlFor="question-limit">Liczba zadań (maks. {selection.random ? 50 : selection.field.exercises_count})</label>
-        <input id="question-limit" type="number" min="1" max={selection.random ? 50 : selection.field.exercises_count} value={limit} onChange={event => setLimit(event.target.value)} required />
-        <div className="dialog-actions">
-          <button type="submit">Rozpocznij</button>
-          <button type="button" className="button-secondary" onClick={() => setSelection(null)}>Anuluj</button>
-        </div>
-      </form>
-    </div>}
-  </section>;
-}
-
-function AuthPage({ register, request, onSuccess }) {
-  const [error, setError] = useState('');
-  const submit = async event => {
-    event.preventDefault();
-    setError('');
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const returnUrl = new URLSearchParams(location.search).get('returnUrl');
-    const body = { ...values };
-    if (returnUrl !== null) body.returnUrl = returnUrl;
-    try {
-      const result = await request(`/auth/${register ? 'register' : 'login'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      onSuccess(result);
-    } catch (err) { setError(err.message); }
-  };
-
-  return <form className="auth-form" onSubmit={submit}>
-    <h1>{register ? 'Rejestracja' : 'Logowanie'}</h1>
-    {error && <div className="error-message" role="alert">{error}</div>}
-    {register && <label>Nazwa użytkownika<input name="username" required maxLength="50" autoComplete="username" /></label>}
-    <label>Email<input name="email" type="email" required autoComplete="email" /></label>
-    <label>Hasło<input name="password" type="password" required minLength={register ? 8 : 1} autoComplete={register ? 'new-password' : 'current-password'} /></label>
-    {register && <label>Powtórz hasło<input name="password2" type="password" required autoComplete="new-password" /></label>}
-    <button type="submit">{register ? 'Utwórz konto' : 'Zaloguj się'}</button>
-  </form>;
-}
-
-function Dashboard({ request }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => { request('/dashboard').then(setData).catch(err => setError(err.message)); }, [request]);
-  return <section className="progress-page">
-    <header className="section-heading">
-      <h1>Twoje postępy</h1>
-      <p>Podsumowanie wyników według działu oraz historia ostatnich podejść.</p>
-    </header>
-    {error && <p role="alert">{error}</p>}
-    {data && <>
-      <section className="table-section">
-        <h2>Wyniki według działu</h2>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead><tr><th>Dział</th><th>Liczba podejść</th><th>Łączny wynik</th><th>Skuteczność</th></tr></thead>
-            <tbody>{data.byField.length
-              ? data.byField.map((item, index) => <tr key={`${item.number}-${index}`}>
-                <td>{item.number}. {item.name}</td>
-                <td>{item.attempts_count}</td>
-                <td>{item.score_sum}/{item.total_sum}</td>
-                <td>{item.total_sum ? Math.round((item.score_sum / item.total_sum) * 100) : 0}%</td>
-              </tr>)
-              : <tr><td className="table-empty" colSpan="4">Brak zapisanych wyników.</td></tr>}</tbody>
-          </table>
-        </div>
-      </section>
-      <section className="table-section">
-        <h2>Historia podejść</h2>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead><tr><th>Data</th><th>Dział</th><th>Wynik</th><th>Skuteczność</th></tr></thead>
-            <tbody>{data.progress.length
-              ? data.progress.map((item, index) => <tr key={`${item.solved_at}-${index}`}>
-                <td>{new Date(item.solved_at).toLocaleString('pl-PL')}</td>
-                <td>{item.name}</td>
-                <td>{item.score}/{item.total}</td>
-                <td>{item.total ? Math.round((item.score / item.total) * 100) : 0}%</td>
-              </tr>)
-              : <tr><td className="table-empty" colSpan="4">Historia pojawi się po rozwiązaniu pierwszego zestawu.</td></tr>}</tbody>
-          </table>
-        </div>
-      </section>
-    </>}
-  </section>;
-}
-
-function AdminPanelNav({ go, active }) {
-  const items = [
-    { path: '/admin', label: 'Przegląd', id: 'overview' },
-    { path: '/admin/users', label: 'Użytkownicy', id: 'users' },
-    { path: '/admin/exercises', label: 'Zadania', id: 'exercises' },
-  ];
-
-  return <nav className="admin-panel-nav" aria-label="Nawigacja panelu administratora">
-    {items.map(item => <a
-      href={item.path}
-      key={item.id}
-      className={active === item.id ? 'active' : ''}
-      aria-current={active === item.id ? 'page' : undefined}
-      onClick={event => { event.preventDefault(); go(item.path); }}
-    >{item.label}</a>)}
-  </nav>;
-}
-
-function AdminHome({ go }) {
-  return <section className="admin-home">
-    <AdminPanelNav go={go} active="overview" />
-    <header className="section-heading">
-      <h1>Panel administratora</h1>
-      <p>Wybierz obszar, którym chcesz zarządzać.</p>
-    </header>
-    <div className="admin-home-grid">
-      <a className="admin-home-card" href="/admin/users" onClick={event => { event.preventDefault(); go('/admin/users'); }}>
-        <span className="admin-home-card-icon" aria-hidden="true">01</span>
-        <span><strong>Użytkownicy</strong><small>Przeglądaj konta, postępy i zarządzaj użytkownikami.</small></span>
-        <span className="admin-home-card-arrow" aria-hidden="true">→</span>
-      </a>
-      <a className="admin-home-card" href="/admin/exercises" onClick={event => { event.preventDefault(); go('/admin/exercises'); }}>
-        <span className="admin-home-card-icon" aria-hidden="true">02</span>
-        <span><strong>Zadania</strong><small>Dodawaj zadania do działów i zarządzaj katalogiem.</small></span>
-        <span className="admin-home-card-arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
-  </section>;
-}
-
-function AdminUsers({ go, request }) {
-  const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState('');
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [error, setError] = useState('');
-  const load = () => request(`/admin/users?search=${encodeURIComponent(search)}`).then(setUsers).catch(err => setError(err.message));
-  useEffect(() => { load(); }, [search]);
-  const removeUser = async user => {
-    try {
-      await request(`/admin/users/${user.id}`, { method: 'DELETE' });
-      setPendingDelete(null);
-      load();
-    } catch (err) { setError(err.message); }
-  };
-
-  return <section className="admin-page">
-    <AdminPanelNav go={go} active="users" />
-    <header className="section-heading">
-      <h1>Użytkownicy</h1>
-      <p>Przeglądaj konta, sprawdzaj postępy i zarządzaj dostępem.</p>
-    </header>
-    {error && <p role="alert">{error}</p>}
-    <label className="table-filter">
-      <span>Filtruj użytkowników</span>
-      <input aria-label="Szukaj użytkowników" placeholder="Nazwa użytkownika lub email" value={search} onChange={event => setSearch(event.target.value)} />
-    </label>
-    <div className="table-scroll table-scroll-wide">
-      <table className="data-table">
-        <thead><tr><th>ID</th><th>Użytkownik</th><th>Email</th><th>Akcje</th></tr></thead>
-        <tbody>{users.length
-          ? users.map(user => <tr key={user.id}>
-            <td>{user.id}</td><td className="table-primary-cell">{user.username}</td><td>{user.email}</td>
-            <td className="table-actions">
-              <button type="button" onClick={() => go(`/admin/users/progress/${user.id}`)}>Postępy</button>
-              {pendingDelete === user.id
-                ? <span className="confirm-actions"><span>Usunąć konto?</span><button type="button" onClick={() => removeUser(user)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
-                : <button type="button" className="button-danger" onClick={() => setPendingDelete(user.id)}>Usuń</button>}
-            </td>
-          </tr>)
-          : <tr><td className="table-empty" colSpan="4">Nie znaleziono użytkowników.</td></tr>}</tbody>
-      </table>
-    </div>
-  </section>;
-}
-
-function AdminProgress({ id, go, request }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => { request(`/admin/users/${id}/progress`).then(setData).catch(err => setError(err.message)); }, [id, request]);
-  return <section className="admin-page">
-    <AdminPanelNav go={go} active="users" />
-    <header className="section-heading">
-      <h1>Postępy użytkownika</h1>
-      {data && <p>Konto: <strong>{data.username}</strong></p>}
-    </header>
-    {error && <p role="alert">{error}</p>}
-    {data && <>
-      <section className="table-section">
-        <h2>Postępy według działu</h2>
-        <div className="table-scroll table-scroll-wide">
-          <table className="data-table">
-            <thead><tr><th>Dział</th><th>Liczba podejść</th><th>Łączny wynik</th><th>Skuteczność</th><th>Ostatnie podejście</th></tr></thead>
-            <tbody>{data.byField.length
-              ? data.byField.map(item => <tr key={item.number}>
-                <td className="table-primary-cell">{item.number}. {item.name}</td>
-                <td>{item.attempts_count}</td>
-                <td>{item.score_sum}/{item.total_sum}</td>
-                <td>{item.effectiveness_percent}%</td>
-                <td>{new Date(item.last_solved_at).toLocaleString('pl-PL')}</td>
-              </tr>)
-              : <tr><td className="table-empty" colSpan="5">Użytkownik nie ma jeszcze zapisanych wyników.</td></tr>}</tbody>
-          </table>
-        </div>
-      </section>
-      <section className="table-section">
-        <h2>Ostatnie podejścia <span className="section-caption">(maksymalnie 10)</span></h2>
-        <div className="table-scroll table-scroll-wide">
-          <table className="data-table">
-            <thead><tr><th>Data</th><th>Dział</th><th>Wynik</th><th>Skuteczność</th></tr></thead>
-            <tbody>{data.progress.length
-              ? data.progress.map((item, index) => <tr key={`${item.solved_at}-${index}`}>
-                <td>{new Date(item.solved_at).toLocaleString('pl-PL')}</td>
-                <td>{item.number}. {item.name}</td>
-                <td>{item.score}/{item.total}</td>
-                <td>{item.total ? Math.round((item.score / item.total) * 100) : 0}%</td>
-              </tr>)
-              : <tr><td className="table-empty" colSpan="4">Brak historii podejść.</td></tr>}</tbody>
-          </table>
-        </div>
-      </section>
-    </>}
-  </section>;
-}
-
-function AdminExercises({ go, request }) {
-  const [data, setData] = useState({ fields: [], exercises: [] });
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const load = () => request('/admin/exercises').then(setData).catch(err => setError(err.message));
-  useEffect(() => { load(); }, []);
-  const submit = async event => {
-    event.preventDefault();
-    setMessage(''); setError('');
-    const form = event.currentTarget;
-    try {
-      await request('/admin/exercises', { method: 'POST', body: new FormData(form) });
-      setMessage('Zadanie dodane.');
-      form.reset();
-      load();
-    } catch (err) { setError(err.message); }
-  };
-  const removeExercise = async exercise => {
-    setError(''); setMessage('');
-    try {
-      await request(`/admin/exercises/${exercise.id}`, { method: 'DELETE' });
-      setPendingDelete(null);
-      setMessage('Zadanie usunięte.');
-      load();
-    } catch (err) { setError(err.message); }
-  };
-
-  return <section className="admin-page">
-    <AdminPanelNav go={go} active="exercises" />
-    <header className="section-heading">
-      <h1>Zadania</h1>
-      <p>Dodawaj zadania do konkretnych działów i zarządzaj katalogiem.</p>
-    </header>
-    {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <form className="admin-exercise-form admin-exercise-form-grid" onSubmit={submit}>
-      <label>Dział<select name="field_id" required>{data.fields.map(field => <option value={field.id} key={field.id}>{field.number} — {field.name}</option>)}</select></label>
-      <label>Typ<select name="type"><option>ABCD</option><option>PF</option></select></label>
-      <label>Poprawna odpowiedź<input name="right_answer" required /></label>
-      <label>Obraz zadania<input type="file" name="image" accept="image/png,image/jpeg,image/gif" required /></label>
-      <div className="admin-form-actions"><button type="submit">Dodaj zadanie</button></div>
-    </form>
-    <section className="table-section">
-      <h2>Lista zadań <span className="section-caption">({data.exercises.length})</span></h2>
-      <div className="table-scroll table-scroll-wide">
-        <table className="data-table exercise-table">
-          <thead><tr><th>ID</th><th>Dział</th><th>Typ</th><th>Podgląd</th><th>Poprawna odpowiedź</th><th>Akcje</th></tr></thead>
-          <tbody>{data.exercises.length
-            ? data.exercises.map(exercise => <tr key={exercise.id}>
-              <td>{exercise.id}</td>
-              <td className="table-primary-cell">{exercise.field_number}. {exercise.field_name}</td>
-              <td><span className="table-tag">{exercise.type}</span></td>
-              <td><img className="exercise-preview" src={`/${exercise.image_url}`} alt={`Podgląd zadania ${exercise.id}`} /></td>
-              <td>{exercise.right_answer}</td>
-              <td className="table-actions">
-                {pendingDelete === exercise.id
-                  ? <span className="confirm-actions"><span>Usunąć?</span><button type="button" onClick={() => removeExercise(exercise)}>Potwierdź</button><button type="button" className="button-secondary" onClick={() => setPendingDelete(null)}>Anuluj</button></span>
-                  : <button type="button" className="button-danger" onClick={() => setPendingDelete(exercise.id)}>Usuń</button>}
-              </td>
-            </tr>)
-            : <tr><td className="table-empty" colSpan="6">Brak zadań w katalogu.</td></tr>}</tbody>
-        </table>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
-    </section>
-  </section>;
+    </AuthProvider>
+  );
 }
 
 createRoot(document.getElementById('root')).render(<App />);
