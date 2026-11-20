@@ -11,7 +11,8 @@
     "db:migrate": "knex --knexfile knexfile.js migrate:latest",
     "db:rollback": "knex --knexfile knexfile.js migrate:rollback",
     "db:seed": "knex --knexfile knexfile.js seed:run",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "test": "node --test src/**/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
